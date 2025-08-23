@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Supabase Storage & Auth Test</title>
+    <title>Supabase Auth & Storage Test</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
+            max-width: 600px;
             margin: 0 auto;
             padding: 20px;
             background-color: #f4f4f4;
@@ -22,54 +22,33 @@
             margin: 10px 0;
             padding: 10px;
             width: 100%;
+            box-sizing: border-box;
         }
-        #fileList {
-            margin-top: 20px;
-        }
-        .file-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px;
-            background-color: #f9f9f9;
-            margin-bottom: 5px;
+        #errorLog {
+            color: red;
+            margin-top: 10px;
+            word-wrap: break-word;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Supabase Storage Test</h1>
+        <h1>Supabase Authentication Test</h1>
         
-        <!-- Authentication Section -->
-        <div id="authSection">
-            <h2>Login</h2>
-            <input type="email" id="emailInput" placeholder="Email">
-            <input type="password" id="passwordInput" placeholder="Password">
-            <button onclick="signIn()">Sign In</button>
-            <button onclick="signUp()">Sign Up</button>
+        <div id="authForm">
+            <input type="email" id="emailInput" placeholder="Email" required>
+            <input type="password" id="passwordInput" placeholder="Password" required>
+            <button onclick="handleAuth('signIn')">Sign In</button>
+            <button onclick="handleAuth('signUp')">Sign Up</button>
+        </div>
+
+        <div id="userInfo" style="display:none;">
+            <h2>Logged In</h2>
+            <p>Email: <span id="userEmail"></span></p>
             <button onclick="signOut()">Sign Out</button>
         </div>
 
-        <!-- User Info -->
-        <div id="userInfo" style="display:none;">
-            <h3>Logged in as: <span id="userEmail"></span></h3>
-        </div>
-
-        <!-- File Upload Section -->
-        <div id="uploadSection" style="display:none;">
-            <h2>File Upload</h2>
-            <input type="file" id="fileUpload">
-            <button onclick="uploadFile()">Upload File</button>
-        </div>
-
-        <!-- File List Section -->
-        <div id="fileListSection" style="display:none;">
-            <h2>Your Files</h2>
-            <button onclick="listFiles()">Refresh File List</button>
-            <div id="fileList"></div>
-        </div>
-
-        <!-- Status Messages -->
-        <div id="statusMessage" style="color: red;"></div>
+        <div id="errorLog"></div>
     </div>
 
     <script>
@@ -80,180 +59,134 @@
         // Initialize Supabase Client
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // UI Element References
-        const authSection = document.getElementById('authSection');
-        const userInfo = document.getElementById('userInfo');
-        const uploadSection = document.getElementById('uploadSection');
-        const fileListSection = document.getElementById('fileListSection');
-        const statusMessage = document.getElementById('statusMessage');
-        const userEmailSpan = document.getElementById('userEmail');
+        // Comprehensive Authentication Handler
+        async function handleAuth(type) {
+            const emailInput = document.getElementById('emailInput');
+            const passwordInput = document.getElementById('passwordInput');
+            const errorLog = document.getElementById('errorLog');
+            const authForm = document.getElementById('authForm');
+            const userInfo = document.getElementById('userInfo');
+            const userEmailSpan = document.getElementById('userEmail');
 
-        // Authentication Functions
-        async function signIn() {
-            const email = document.getElementById('emailInput').value;
-            const password = document.getElementById('passwordInput').value;
+            // Reset previous error messages
+            errorLog.textContent = '';
 
-            try {
-                const { data, error } = await supabase.auth.signInWithPassword({
-                    email: email,
-                    password: password
-                });
-
-                if (error) throw error;
-                updateUIAfterAuth(data.user);
-            } catch (error) {
-                statusMessage.textContent = `Sign In Error: ${error.message}`;
-            }
-        }
-
-        async function signUp() {
-            const email = document.getElementById('emailInput').value;
-            const password = document.getElementById('passwordInput').value;
-
-            try {
-                const { data, error } = await supabase.auth.signUp({
-                    email: email,
-                    password: password
-                });
-
-                if (error) throw error;
-                updateUIAfterAuth(data.user);
-            } catch (error) {
-                statusMessage.textContent = `Sign Up Error: ${error.message}`;
-            }
-        }
-
-        async function signOut() {
-            try {
-                const { error } = await supabase.auth.signOut();
-                
-                if (error) throw error;
-                
-                // Reset UI
-                authSection.style.display = 'block';
-                userInfo.style.display = 'none';
-                uploadSection.style.display = 'none';
-                fileListSection.style.display = 'none';
-                userEmailSpan.textContent = '';
-                statusMessage.textContent = 'Signed out successfully';
-            } catch (error) {
-                statusMessage.textContent = `Sign Out Error: ${error.message}`;
-            }
-        }
-
-        // Update UI after successful authentication
-        function updateUIAfterAuth(user) {
-            if (user) {
-                authSection.style.display = 'none';
-                userInfo.style.display = 'block';
-                uploadSection.style.display = 'block';
-                fileListSection.style.display = 'block';
-                userEmailSpan.textContent = user.email;
-                statusMessage.textContent = 'Successfully logged in!';
-            }
-        }
-
-        // File Upload Function
-        async function uploadFile() {
-            const fileInput = document.getElementById('fileUpload');
-            const file = fileInput.files[0];
-
-            if (!file) {
-                statusMessage.textContent = 'Please select a file first';
+            // Validate inputs
+            if (!emailInput.value || !passwordInput.value) {
+                errorLog.textContent = 'Please enter both email and password';
                 return;
             }
 
             try {
-                const { data: { user } } = await supabase.auth.getUser();
+                let authResult;
                 
-                if (!user) {
-                    statusMessage.textContent = 'You must be logged in to upload files';
-                    return;
-                }
-
-                // Create a unique filename with user ID and timestamp
-                const fileName = `${user.id}/${Date.now()}_${file.name}`;
-
-                const { data, error } = await supabase.storage
-                    .from('user_uploads')
-                    .upload(fileName, file);
-
-                if (error) throw error;
-
-                statusMessage.textContent = 'File uploaded successfully!';
-                await listFiles();  // Refresh file list
-            } catch (error) {
-                statusMessage.textContent = `Upload Error: ${error.message}`;
-            }
-        }
-
-        // List User's Files
-        async function listFiles() {
-            try {
-                const { data: { user } } = await supabase.auth.getUser();
-                
-                if (!user) {
-                    statusMessage.textContent = 'You must be logged in to list files';
-                    return;
-                }
-
-                const { data: files, error } = await supabase.storage
-                    .from('user_uploads')
-                    .list(user.id, {
-                        limit: 100,
-                        offset: 0,
-                        sortBy: { column: 'created_at', order: 'desc' }
+                // Determine authentication method
+                if (type === 'signIn') {
+                    authResult = await supabase.auth.signInWithPassword({
+                        email: emailInput.value,
+                        password: passwordInput.value
                     });
-
-                if (error) throw error;
-
-                const fileListElement = document.getElementById('fileList');
-                fileListElement.innerHTML = ''; // Clear previous list
-
-                if (files.length === 0) {
-                    fileListElement.innerHTML = '<p>No files uploaded yet.</p>';
-                    return;
+                } else if (type === 'signUp') {
+                    authResult = await supabase.auth.signUp({
+                        email: emailInput.value,
+                        password: passwordInput.value
+                    });
                 }
 
-                files.forEach(file => {
-                    const fileItem = document.createElement('div');
-                    fileItem.className = 'file-item';
-                    fileItem.innerHTML = `
-                        <span>${file.name}</span>
-                        <button onclick="downloadFile('${user.id}/${file.name}')">Download</button>
-                    `;
-                    fileListElement.appendChild(fileItem);
-                });
+                // Check for authentication errors
+                if (authResult.error) {
+                    throw authResult.error;
+                }
+
+                // Successfully authenticated
+                const user = authResult.data.user;
+                
+                if (user) {
+                    // Update UI
+                    authForm.style.display = 'none';
+                    userInfo.style.display = 'block';
+                    userEmailSpan.textContent = user.email;
+                    
+                    // Log successful authentication
+                    console.log('Authentication successful:', user);
+                } else {
+                    // No user returned (unexpected)
+                    errorLog.textContent = 'Authentication successful but no user data returned';
+                }
+
             } catch (error) {
-                statusMessage.textContent = `File List Error: ${error.message}`;
+                // Comprehensive error handling
+                console.error('Authentication Error:', error);
+                
+                // Detailed error logging
+                let errorMessage = 'Authentication failed: ';
+                
+                // Check for specific error types
+                switch (error.status) {
+                    case 400:
+                        errorMessage += 'Bad Request. Check your credentials.';
+                        break;
+                    case 401:
+                        errorMessage += 'Unauthorized. Invalid email or password.';
+                        break;
+                    case 429:
+                        errorMessage += 'Too many requests. Please try again later.';
+                        break;
+                    default:
+                        errorMessage += error.message || 'Unknown error occurred';
+                }
+
+                // Display error
+                errorLog.textContent = errorMessage;
             }
         }
 
-        // Download File Function
-        async function downloadFile(filePath) {
-            try {
-                const { data, error } = await supabase.storage
-                    .from('user_uploads')
-                    .download(filePath);
+        // Sign Out Function
+        async function signOut() {
+            const authForm = document.getElementById('authForm');
+            const userInfo = document.getElementById('userInfo');
+            const errorLog = document.getElementById('errorLog');
 
+            try {
+                const { error } = await supabase.auth.signOut();
+                
                 if (error) throw error;
 
-                // Create a download link
-                const url = URL.createObjectURL(data);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = filePath.split('/').pop();
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                // Reset UI
+                authForm.style.display = 'block';
+                userInfo.style.display = 'none';
+                errorLog.textContent = 'Successfully signed out';
             } catch (error) {
-                statusMessage.textContent = `Download Error: ${error.message}`;
+                errorLog.textContent = `Sign Out Error: ${error.message}`;
             }
         }
 
-        // Check current authentication state on page load
+        // Check authentication state on page load
         document.addEventListener('DOMContentLoaded', async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            const authForm = document.getElementById('authForm');
+            const userInfo = document.getElementById('userInfo');
+            const userEmailSpan = document.getElementById('userEmail');
+
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                
+                if (user) {
+                    // User is already authenticated
+                    authForm.style.display = 'none';
+                    userInfo.style.display = 'block';
+                    userEmailSpan.textContent = user.email;
+                } else {
+                    // No authenticated user
+                    authForm.style.display = 'block';
+                    userInfo.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Authentication check failed:', error);
+            }
+        });
+    </script>
+</body>
+</html>();
             if (user) {
                 updateUIAfterAuth(user);
             }
