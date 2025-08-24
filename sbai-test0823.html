@@ -9,10 +9,65 @@
     <h1>Supabase Connection Test</h1>
     <div id="result"></div>
 
-    <script>
+   
+        // Initialize Supabase client
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Test function
+        async function testConnection() {
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                // Example: Try to fetch some data or call an Edge Function
+                const response = await fetch(`${SUPABASE_URL}/functions/v1/YOUR_FUNCTION_NAME`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Add authorization if needed
+                        // 'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                resultDiv.innerHTML = `Connection Success: ${JSON.stringify(data)}`;
+            } catch (error) {
+                resultDiv.innerHTML = `Connection Error: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        // Run the test
+        testConnection();
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Supabase API Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Supabase Connection Test</h1>
+    <div id="result"></div>
+
+          <script>
            // Configuration
         const SUPABASE_URL = 'https://mfrefbmnxygeahaluhzr.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0';
+
 
         // Initialize Supabase client
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
