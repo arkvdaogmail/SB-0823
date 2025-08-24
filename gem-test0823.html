@@ -23,10 +23,12 @@
     <input type="file" id="fileInput" disabled />
     <button id="uploadButton" onclick="uploadAndStampFile()" disabled>Upload & Stamp</button>
     
+
 <script>
     // --- Your keys are now correctly filled in ---
     const SUPABASE_URL = 'https://mfrefbmnxygeahaluhzr.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0';
+    // --- Do not change the lines above ---
 
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
@@ -62,16 +64,18 @@
         statusDiv.innerText = 'Starting test...';
 
         try {
-            // Get the current user
+            // Get current user
             const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) throw new Error('No authenticated user');
+            if (!user) {
+                throw new Error('No authenticated user found');
+            }
 
             // 1. UPLOAD THE FILE
             statusDiv.innerText = 'Step 1: Uploading file...';
-            const uniqueFileName = `${user.id}/${Date.now()}-${file.name}`;
+            const uniqueFileName = `${Date.now()}-${file.name}`;
             
             const { data: uploadData, error: uploadError } = await supabaseClient.storage
-                .from('documents')  // Ensure this bucket exists
+                .from('documents')
                 .upload(uniqueFileName, file);
 
             if (uploadError) throw uploadError;
@@ -84,7 +88,7 @@
                 .insert({ 
                     document_name: file.name, 
                     file_path: uploadData.path,
-                    user_id: user.id 
+                    user_id: user.id
                 });
 
             if (insertError) throw insertError;
@@ -106,9 +110,13 @@
             
         } catch (error) {
             statusDiv.innerHTML = `<strong style="color: red;">❌❌❌ TEST FAILED ❌❌❌<br>Error: ${error.message}</strong>`;
+            console.error('Full error:', error);
         }
     }
 </script>
+
+</body>
+</html>
 
 </body>
 </html>
