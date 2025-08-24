@@ -2,87 +2,56 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Supabase File Management System</title>
+    <title>Supabase File Management</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script>
-        // Early error logging
-        window.addEventListener('error', function(event) {
-            console.error('Uncaught error:', event.error);
-            alert('An error occurred: ' + event.error);
-        });
-    </script>
 </head>
 <body>
-    <div id="errorDisplay" style="color: red; background-color: #ffeeee; padding: 10px;"></div>
-
-    <!-- Rest of the previous HTML -->
+    <div id="errorContainer" style="color: red;"></div>
 
     <script>
-        // Add comprehensive error logging
         function logError(message, error) {
             console.error(message, error);
-            const errorDisplay = document.getElementById('errorDisplay');
-            if (errorDisplay) {
-                errorDisplay.innerHTML += `<p>${message}: ${error ? error.toString() : 'Unknown error'}</p>`;
+            const errorContainer = document.getElementById('errorContainer');
+            if (errorContainer) {
+                errorContainer.innerHTML += `<p>${message}: ${error || 'Unknown error'}</p>`;
             }
-            alert(message);
         }
 
-        // Modify initialization to add error handling
         try {
-            // Supabase configuration
             const SUPABASE_URL = 'https://mfrefbmnxygeahaluhzr.supabase.co';
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0';
             
-            // Initialize Supabase client with error handling
-            const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-                auth: {
-                    persistSession: true
-                }
-            });
+            const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-            // Add error listener to Supabase client
-            supabaseClient.on('error', (error) => {
-                logError('Supabase Client Error', error);
-            });
-
-            // Rest of the previous script...
-
-            // Add a global error handler for Supabase
-            function handleSupabaseError(error) {
-                console.error('Supabase Error:', error);
-                const errorDisplay = document.getElementById('errorDisplay');
-                if (errorDisplay) {
-                    errorDisplay.innerHTML += `<p>Supabase Error: ${error.message}</p>`;
-                }
-            }
-
-            // Modify existing functions to use error handling
-            async function checkAuth() {
+            async function checkAuthStatus() {
                 try {
                     const { data, error } = await supabaseClient.auth.getSession();
                     
-                    if (error) {
-                        logError('Auth Session Error', error);
-                        return;
-                    }
+                    if (error) throw error;
                     
-                    if (data.session) {
-                        setStatus('Authenticated as ' + data.session.user.email, 'success');
-                        enableUI();
-                    } else {
-                        setStatus('No active session', 'warning');
-                    }
-                } catch (error) {
-                    logError('Check Auth Error', error);
+                    return data.session ? true : false;
+                } catch (authError) {
+                    logError('Authentication Error', authError);
+                    return false;
                 }
             }
 
-            // Call checkAuth when script loads
-            document.addEventListener('DOMContentLoaded', () => {
-                console.log('DOM fully loaded and parsed');
-                checkAuth();
-            });
+            async function initializeApp() {
+                const isAuthenticated = await checkAuthStatus();
+                
+                if (!isAuthenticated) {
+                    try {
+                        await supabaseClient.auth.signInWithOAuth({
+                            provider: 'github',
+                            options: { redirectTo: window.location.href }
+                        });
+                    } catch (oauthError) {
+                        logError('OAuth Error', oauthError);
+                    }
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', initializeApp);
 
         } catch (globalError) {
             logError('Global Initialization Error', globalError);
