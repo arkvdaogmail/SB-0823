@@ -4,58 +4,186 @@
     <meta charset="UTF-8">
     <title>Supabase File Management</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        #errorContainer { 
+            color: red; 
+            background-color: #ffeeee; 
+            padding: 10px; 
+            margin: 10px 0; 
+        }
+        #fileUploadContainer {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
-    <div id="errorContainer" style="color: red;"></div>
+    <div id="errorContainer"></div>
+    
+    <div id="authContainer">
+        <button id="loginButton">Login with GitHub</button>
+        <button id="logoutButton" style="display:none;">Logout</button>
+    </div>
+
+    <div id="fileUploadContainer">
+        <input type="file" id="fileInput" multiple>
+        <button id="uploadButton">Upload Files</button>
+    </div>
+
+    <div id="fileListContainer"></div>
 
     <script>
+        // Comprehensive Error Logging Function
         function logError(message, error) {
             console.error(message, error);
             const errorContainer = document.getElementById('errorContainer');
             if (errorContainer) {
-                errorContainer.innerHTML += `<p>${message}: ${error || 'Unknown error'}</p>`;
+                const errorEntry = document.createElement('p');
+                errorEntry.textContent = `${message}: ${error ? error.toString() : 'Unknown error'}`;
+                errorContainer.appendChild(errorEntry);
             }
         }
 
-        try {
-            const SUPABASE_URL = 'https://mfrefbmnxygeahaluhzr.supabase.co';
-            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0';
-            
-            const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Global Error Handler
+        window.addEventListener('error', function(event) {
+            logError('Uncaught global error', event.error);
+        });
 
-            async function checkAuthStatus() {
-                try {
-                    const { data, error } = await supabaseClient.auth.getSession();
-                    
-                    if (error) throw error;
-                    
-                    return data.session ? true : false;
-                } catch (authError) {
-                    logError('Authentication Error', authError);
+        // Configuration and Initialization
+        const SUPABASE_URL = 'https://mfrefbmnxygeahaluhzr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0';
+
+        // Supabase Client Initialization
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession: true
+            }
+        });
+
+        // Authentication Management
+        async function checkAuthStatus() {
+            try {
+                const { data, error } = await supabaseClient.auth.getSession();
+                
+                if (error) throw error;
+                
+                const loginButton = document.getElementById('loginButton');
+                const logoutButton = document.getElementById('logoutButton');
+                const fileUploadContainer = document.getElementById('fileUploadContainer');
+
+                if (data.session) {
+                    console.log('Authenticated user:', data.session.user);
+                    loginButton.style.display = 'none';
+                    logoutButton.style.display = 'block';
+                    fileUploadContainer.style.display = 'block';
+                    return true;
+                } else {
+                    console.warn('No active session');
+                    loginButton.style.display = 'block';
+                    logoutButton.style.display = 'none';
+                    fileUploadContainer.style.display = 'none';
                     return false;
                 }
+            } catch (authError) {
+                logError('Auth Check Failed', authError);
+                return false;
             }
-
-            async function initializeApp() {
-                const isAuthenticated = await checkAuthStatus();
-                
-                if (!isAuthenticated) {
-                    try {
-                        await supabaseClient.auth.signInWithOAuth({
-                            provider: 'github',
-                            options: { redirectTo: window.location.href }
-                        });
-                    } catch (oauthError) {
-                        logError('OAuth Error', oauthError);
-                    }
-                }
-            }
-
-            document.addEventListener('DOMContentLoaded', initializeApp);
-
-        } catch (globalError) {
-            logError('Global Initialization Error', globalError);
         }
+
+        // File Upload Function
+        async function uploadFiles() {
+            const fileInput = document.getElementById('fileInput');
+            const files = fileInput.files;
+
+            if (!files.length) {
+                logError('No files selected', new Error('Empty file selection'));
+                return;
+            }
+
+            try {
+                for (let file of files) {
+                    const userId = supabaseClient.auth.getUser().data.user.id;
+                    const filePath = `${userId}/${file.name}`;
+
+                    const { data, error } = await supabaseClient.storage
+                        .from('user-uploads')
+                        .upload(filePath, file, {
+                            cacheControl: '3600',
+                            upsert: true
+                        });
+
+                    if (error) throw error;
+                    console.log('File uploaded successfully:', data);
+                }
+
+                // Refresh file list after upload
+                await listFiles();
+            } catch (uploadError) {
+                logError('File Upload Error', uploadError);
+            }
+        }
+
+        // List User's Files
+        async function listFiles() {
+            try {
+                const userId = supabaseClient.auth.getUser().data.user.id;
+                const { data, error } = await supabaseClient.storage
+                    .from('user-uploads')
+                    .list(userId, {
+                        limit: 100,
+                        offset: 0,
+                        sortBy: { column: 'name', order: 'asc' }
+                    });
+
+                if (error) throw error;
+
+                const fileListContainer = document.getElementById('fileListContainer');
+                fileListContainer.innerHTML = '<h3>Your Files:</h3>';
+
+                data.forEach(file => {
+                    const fileEntry = document.createElement('div');
+                    fileEntry.textContent = file.name;
+                    fileListContainer.appendChild(fileEntry);
+                });
+            } catch (listError) {
+                logError('File Listing Error', listError);
+            }
+        }
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginButton = document.getElementById('loginButton');
+            const logoutButton = document.getElementById('logoutButton');
+            const uploadButton = document.getElementById('uploadButton');
+
+            loginButton.addEventListener('click', async () => {
+                try {
+                    const { error } = await supabaseClient.auth.signInWithOAuth({
+                        provider: 'github',
+                        options: { redirectTo: window.location.href }
+                    });
+                    if (error) throw error;
+                } catch (loginError) {
+                    logError('Login Error', loginError);
+                }
+            });
+
+            logoutButton.addEventListener('click', async () => {
+                try {
+                    const { error } = await supabaseClient.auth.signOut();
+                    if (error) throw error;
+                    await checkAuthStatus();
+                } catch (logoutError) {
+                    logError('Logout Error', logoutError);
+                }
+            });
+
+            uploadButton.addEventListener('click', uploadFiles);
+
+            // Initial auth status check
+            checkAuthStatus();
+        });
     </script>
 </body>
 </html>
