@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Supabase File Management</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+        .section {
+            background-color: #f5f5f5;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        button:hover:not([disabled]) {
+            background-color: #45a049;
+        }
+        input[type=text], input[type=password], input[type=email] {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Supabase File Management System</h1>
+    <div id="status" class="status info">Status: Waiting for authentication...</div>
+
+    <div class="section">
+        <h2>1. Authentication</h2>
+        <input type="email" id="email" placeholder="Enter your email" />
+        <input type="password" id="password" placeholder="Enter your password" />
+        <div>
+            <button onclick="loginUser()">Log In</button>
+            <span id="authStatus"></span>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>2. Upload a File</h2>
+        <p>Select any file type to upload:</p>
+        <input type="file" id="fileInput" disabled />
+        <div>
+            <button id="uploadButton" onclick="uploadFile()" disabled>Upload File</button>
+        </div>
+        <div id="uploadStatus"></div>
+    </div>
+
+    <div class="section">
+        <h2>3. Look up Records</h2>
+        <div>
+            <input type="text" id="searchInput" placeholder="Search by file name..." disabled />
+            <button id="searchButton" onclick="searchRecords()" disabled>Search Records</button>
+            <button id="listAllButton" onclick="listAllRecords()" disabled>List All My Records</button>
+        </div>
+        <div id="searchResults">
+            <table id="resultsTable" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>Document Name</th>
+                        <th>File Path</th>
+                        <th>Created At</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+<script>
+    // Supabase configuration
+    const SUPABASE_URL = 'https://mfrefbmnxygeahaluhzr.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0';
+    
+    // Initialize Supabase client
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // DOM elements
+    const statusElement = document.getElementById('status');
+    const authStatusElement = document.getElementById('authStatus');
+    const uploadStatusElement = document.getElementById('uploadStatus');
+    const fileInput = document.getElementById('fileInput');
+    const uploadButton = document.getElementById('uploadButton');
+    const searchInput = document.getElementById('searchInput');
+    const searchButton = document.getElementById('searchButton');
+    const listAllButton = document.getElementById('listAllButton');
+    const resultsTable = document.getElementById('resultsTable');
+    const resultsBody = document.getElementById('resultsBody');
+    
+    // Check authentication status on page load
+    checkAuth();
+    
+    async function checkAuth() {
+        const { data, error } = await supabaseClient.auth.getSession();
+        
+        if (error) {
+            setStatus('Error checking auth status: ' + error.message, 'error');
+            return;
+        }
+        
+        if (data.session) {
+            setStatus('Authenticated as ' + data.session.user.email, 'success');
+            enableUI();
+        }
+    }
+    
+    async function loginUser() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        
+        if (!email || !password) {
+            setStatus('Please enter both email and password', 'warning');
+            return;
+        }
+        
+        setStatus('Logging in...', 'info');
+        
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ 
+            email, 
+            password 
+        });
+        
+        if (error) {
+            setStatus('Login failed: ' + error.message, 'error');
+            return;
+        }
+        
+        setStatus('Logged in successfully as ' + data.user.email, 'success');
+        enableUI();
+    }
+    
+    function enableUI() {
+        fileInput.disabled = false;
+        uploadButton.disabled = false;
+        searchInput.disabled = false;
+        searchButton.disabled = false;
+        listAllButton.disabled = false;
+    }
+    
+    async function uploadFile() {
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            setStatus('Please select a file first', 'warning');
+            return;
+        }
+        
+        uploadStatusElement.innerHTML = 'Uploading file...';
+        uploadStatusElement.className = 'status info';
+        
+        try {
+            // Get current user
+            const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+            
+            if (userError || !userData.user) {
+                throw new Error(userError?.message || 'No authenticated user found');
+            }
+            
+            // 1. Upload the file to storage
+            const uniqueFileName = `${Date.now()}-${file.name}`;
+            const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                .from('documents')
+                .upload(uniqueFileName, file);
+                
+            if (uploadError) throw uploadError;
+            
+            // 2. Create a record in the documents table
+            const { error: insertError } = await supabaseClient
+                .from('documents')
+                .insert({
+                    document_name: file.name,
+                    file_path: uploadData.path,
+                    user_id: userData.user.id
+                });
+                
+            if (insertError) throw insertError;
+            
+            uploadStatusElement.innerHTML = `
+                <div class="status success">
+                    <strong>Upload Successful!</strong><br>
+                    File: ${file.name}<br>
+                    Path: ${uploadData.path}
+                </div>
+            `;
+            
+            // Refresh the file list
+            listAllRecords();
+            
+        } catch (error) {
+            uploadStatusElement.innerHTML = `
+                <div class="status error">
+                    <strong>Upload Failed:</strong><br>
+                    ${error.message}
+                </div>
+            `;
+            console.error('Upload error:', error);
+        }
+    }
+    
+    async function searchRecords() {
+        const searchTerm = searchInput.value.trim();
+        
+        if (!searchTerm) {
+            setStatus('Please enter a search term', 'warning');
+            return;
+        }
+        
+        setStatus('Searching for records...', 'info');
+        
+        try {
+            // Search for records containing the search term in the document_name
+            const { data, error } = await supabaseClient
+                .from('documents')
+                .select('*')
+                .ilike('document_name', `%${searchTerm}%`);
+                
+            if (error) throw error;
+            
+            displayResults(data);
+            
+        } catch (error) {
+            setStatus('Search failed: ' + error.message, 'error');
+            console.error('Search error:', error);
+        }
+    }
+    
+    async function listAllRecords() {
+        setStatus('Loading all your records...', 'info');
+        
+        try {
+            const { data, error } = await supabaseClient
+                .from('documents')
+                .select('*')
+                .order('created_at', { ascending: false });
+                
+            if (error) throw error;
+            
+            displayResults(data);
+            
+        } catch (error) {
+            setStatus('Failed to list records: ' + error.message, 'error');
+            console.error('List error:', error);
+        }
+    }
+    
+    function displayResults(data) {
+        if (!data || data.length === 0) {
+            setStatus('No records found', 'info');
+            resultsTable.style.display = 'none';
+            return;
+        }
+        
+        // Clear existing results
+        resultsBody.innerHTML = '';
+        
+        // Add new results
+        data.forEach(record => {
+            const row = document.createElement('tr');
+            
+            // Format date
+            const createdAt = new Date(record.created_at);
+            const formattedDate = createdAt.toLocaleString();
+            
+            row.innerHTML = `
+                <td>${record.document_name}</td>
+                <td>${record.file_path}</td>
+                <td>${formattedDate}</td>
+                <td>
+                    <button onclick="downloadFile('${record.file_path}')">Download</button>
+                </td>
+            `;
+            
+            resultsBody.appendChild(row);
+        });
+        
+        resultsTable.style.display = 'table';
+        setStatus(`Found ${data.length} record(s)`, 'success');
+    }
+    
+    async function downloadFile(filePath) {
+        try {
+            // Get file URL
+            const { data, error } = await supabaseClient.storage
+                .from('documents')
+                .createSignedUrl(filePath, 60); // URL valid for 60 seconds
+                
+            if (error) throw error;
+            
+            // Open in new tab
+            window.open(data.signedUrl, '_blank');
+            
+        } catch (error) {
+            setStatus('Download failed: ' + error.message, 'error');
+            console.error('Download error:', error);
+        }
+    }
+    
+    function setStatus(message, type) {
+        statusElement.textContent = message;
+        statusElement.className = `status ${type}`;
+    }
+</script>
+
+</body>
+</html>
