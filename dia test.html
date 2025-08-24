@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Supabase Diagnostic Screen</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        #diagnosticPanel {
+            background-color: #f4f4f4;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .error { color: red; }
+        .success { color: green; }
+        .warning { color: orange; }
+    </style>
+</head>
+<body>
+    <h1>Supabase Connection Diagnostic</h1>
+    <div id="diagnosticPanel"></div>
+
+    <script>
+        // Comprehensive Diagnostic Logging
+        function log(message, type = 'info') {
+            const panel = document.getElementById('diagnosticPanel');
+            const entry = document.createElement('div');
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            entry.classList.add(type);
+            panel.appendChild(entry);
+            console.log(message);
+        }
+
+        // Comprehensive Environment Check
+        function checkEnvironment() {
+            log('Performing Environment Diagnostic', 'info');
+
+            // Browser Details
+            log(`User Agent: ${navigator.userAgent}`, 'info');
+            log(`Browser Language: ${navigator.language}`, 'info');
+
+            // Network Check
+            log(`Online Status: ${navigator.onLine ? 'Online' : 'Offline'}`, 'info');
+
+            // Storage Availability
+            try {
+                const storageTest = 'supabaseStorageTest';
+                localStorage.setItem(storageTest, 'test');
+                localStorage.removeItem(storageTest);
+                log('Local Storage: Accessible', 'success');
+            } catch (e) {
+                log('Local Storage: Inaccessible', 'error');
+            }
+        }
+
+        // Comprehensive Supabase Initialization Diagnostic
+        function initSupabaseDiagnostic() {
+            log('Starting Supabase Initialization Diagnostic', 'info');
+
+            // Validate Supabase Configuration
+            const SUPABASE_URL = 'https://mfrefbmnxygeahaluhzr.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0';
+
+            log(`Supabase URL: ${SUPABASE_URL}`, 'info');
+            
+            // URL Validation
+            try {
+                new URL(SUPABASE_URL);
+                log('URL Format: Valid', 'success');
+            } catch (e) {
+                log('URL Format: Invalid', 'error');
+                return;
+            }
+
+            // Key Length Check
+            if (SUPABASE_ANON_KEY.length < 50) {
+                log('Anon Key: Suspiciously Short', 'error');
+                return;
+            }
+
+            // Supabase Client Initialization
+            try {
+                const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                    auth: {
+                        persistSession: true
+                    },
+                    global: {
+                        headers: { 'x-diagnostic-check': 'true' }
+                    }
+                });
+
+                log('Supabase Client: Successfully Initialized', 'success');
+
+                // Authentication State Check
+                supabaseClient.auth.getSession()
+                    .then(({ data, error }) => {
+                        if (error) {
+                            log(`Session Check Error: ${error.message}`, 'error');
+                        } else {
+                            log('Session Check: Completed', 'success');
+                            if (data.session) {
+                                log(`Authenticated User: ${data.session.user.email}`, 'success');
+                            } else {
+                                log('No Active Session', 'warning');
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        log(`Unexpected Session Error: ${err.message}`, 'error');
+                    });
+
+            } catch (initError) {
+                log(`Supabase Initialization Error: ${initError.message}`, 'error');
+            }
+        }
+
+        // Network and Resource Loading Diagnostic
+        function networkDiagnostic() {
+            log('Starting Network Diagnostic', 'info');
+
+            // Script Loading Check
+            if (typeof supabase === 'undefined') {
+                log('Supabase Script: Not Loaded', 'error');
+            } else {
+                log('Supabase Script: Loaded Successfully', 'success');
+            }
+
+            // Network Request Test
+            fetch('https://mfrefbmnxygeahaluhzr.supabase.co/rest/v1/', {
+                method: 'GET',
+                headers: {
+                    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0'
+                }
+            })
+            .then(response => {
+                log('Network Request: Successful', 'success');
+                log(`Response Status: ${response.status}`, 'info');
+            })
+            .catch(error => {
+                log(`Network Request Error: ${error.message}`, 'error');
+            });
+        }
+
+        // Global Error Handling
+        window.addEventListener('error', (event) => {
+            log(`Unhandled Error: ${event.message}`, 'error');
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            log(`Unhandled Promise Rejection: ${event.reason}`, 'error');
+        });
+
+        // Run Diagnostics
+        document.addEventListener('DOMContentLoaded', () => {
+            log('DOM Content Loaded', 'info');
+            checkEnvironment();
+            initSupabaseDiagnostic();
+            networkDiagnostic();
+        });
+    </script>
+</body>
+</html>
