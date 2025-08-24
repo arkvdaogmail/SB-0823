@@ -23,12 +23,10 @@
     <input type="file" id="fileInput" disabled />
     <button id="uploadButton" onclick="uploadAndStampFile()" disabled>Upload & Stamp</button>
     
-
 <script>
     // --- Your keys are now correctly filled in ---
     const SUPABASE_URL = 'https://mfrefbmnxygeahaluhzr.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0';
-    // --- Do not change the lines below ---
 
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
@@ -64,12 +62,16 @@
         statusDiv.innerText = 'Starting test...';
 
         try {
+            // Get the current user
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) throw new Error('No authenticated user');
+
             // 1. UPLOAD THE FILE
             statusDiv.innerText = 'Step 1: Uploading file...';
-            const uniqueFileName = `${Date.now()}-${file.name}`;
+            const uniqueFileName = `${user.id}/${Date.now()}-${file.name}`;
             
             const { data: uploadData, error: uploadError } = await supabaseClient.storage
-                .from('documents') // CORRECTED BUCKET NAME
+                .from('documents')  // Ensure this bucket exists
                 .upload(uniqueFileName, file);
 
             if (uploadError) throw uploadError;
@@ -78,8 +80,12 @@
             // 2. CREATE THE RECORD
             statusDiv.innerText = 'Step 2: Creating database record...';
             const { error: insertError } = await supabaseClient
-                .from('documents') // CORRECTED TABLE NAME
-                .insert({ document_name: file.name, document_url: uploadData.path }); // FINAL CORRECTED COLUMN NAME
+                .from('documents')
+                .insert({ 
+                    document_name: file.name, 
+                    file_path: uploadData.path,
+                    user_id: user.id 
+                });
 
             if (insertError) throw insertError;
             statusDiv.innerText = '✅ Database record created!';
@@ -87,9 +93,9 @@
             // 3. LOOKUP THE RECORD
             statusDiv.innerText = 'Step 3: Looking up the new record...';
             const { data: lookupData, error: lookupError } = await supabaseClient
-                .from('documents') // CORRECTED TABLE NAME
+                .from('documents')
                 .select('document_name')
-                .eq('document_url', uploadData.path) // FINAL CORRECTED COLUMN NAME
+                .eq('file_path', uploadData.path)
                 .single();
 
             if (lookupError) throw lookupError;
