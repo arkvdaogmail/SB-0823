@@ -1,16 +1,15 @@
 <script>
-    /
+    // --- Your keys are now correctly filled in ---
     const SUPABASE_URL = 'https://mfrefbmnxygeahaluhzr.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIOzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0';
-  
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0';
+    // --- Do not change the lines below ---
 
-    // CORRECTED INITIALIZATION
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
     const statusDiv = document.getElementById('status');
     const fileInput = document.getElementById('fileInput');
     const uploadButton = document.getElementById('uploadButton');
- 
+
     // Function to log in a test user
     async function loginUser() {
         const email = document.getElementById('email').value;
