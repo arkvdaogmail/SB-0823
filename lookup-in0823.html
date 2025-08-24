@@ -2,22 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Supabase File Management</title>
+    <title>Supabase File Management System</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            max-width: 1000px;
-            margin: 0 auto;
-            line-height: 1.5;
-        }
-        .section {
-            background-color: #f5f5f5;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 5px;
-        }
+        /* Previous styles remain the same */
+        
+        /* Added styles for file preview modal */
         #filePreviewModal {
             position: fixed;
             top: 0;
@@ -59,13 +49,18 @@
             max-height: 500px;
             overflow: auto;
         }
-        /* Rest of the previous styles remain the same */
+        .file-icon {
+            margin-right: 10px;
+            width: 24px;
+            height: 24px;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body>
-    <!-- Previous HTML content remains the same -->
+    <!-- Previous body content remains the same -->
 
-    <!-- File Preview Modal -->
+    <!-- Add file preview modal -->
     <div id="filePreviewModal">
         <div id="filePreviewContent">
             <span id="closePreview">&times;</span>
@@ -73,126 +68,142 @@
         </div>
     </div>
 
-    <script>
-        // ... (previous JavaScript remains the same)
+<script>
+    // Previous script remains the same, with the following additions:
 
-        // File Preview Function
-        async function previewFile(filePath, fileName) {
-            const filePreviewModal = document.getElementById('filePreviewModal');
-            const previewContainer = document.getElementById('previewContainer');
-            
-            try {
-                // Get signed URL for the file
-                const { data, error } = await supabaseClient.storage
-                    .from('documents')
-                    .createSignedUrl(filePath, 60); // URL valid for 60 seconds
-                
-                if (error) throw error;
+    // File type to icon mapping
+    const fileTypeIcons = {
+        'pdf': '📄',
+        'txt': '📝',
+        'doc': '📃',
+        'docx': '📃',
+        'jpg': '🖼️',
+        'jpeg': '🖼️',
+        'png': '🖼️',
+        'gif': '🖼️',
+        'csv': '📊',
+        'xls': '📊',
+        'xlsx': '📊',
+        'default': '📁'
+    };
 
-                // Reset previous preview
-                previewContainer.innerHTML = '';
+    // Get file icon based on extension
+    function getFileIcon(filename) {
+        const extension = filename.split('.').pop().toLowerCase();
+        return fileTypeIcons[extension] || fileTypeIcons['default'];
+    }
 
-                // Determine file type
-                const fileExtension = fileName.split('.').pop().toLowerCase();
-                const signedUrl = data.signedUrl;
+    // Modal preview elements
+    const filePreviewModal = document.getElementById('filePreviewModal');
+    const previewContainer = document.getElementById('previewContainer');
+    const closePreview = document.getElementById('closePreview');
 
-                // Preview based on file type
-                switch(fileExtension) {
-                    case 'jpg':
-                    case 'jpeg':
-                    case 'png':
-                    case 'gif':
-                    case 'bmp':
-                    case 'webp':
-                        // Image preview
-                        const img = document.createElement('img');
-                        img.src = signedUrl;
-                        img.classList.add('preview-image');
-                        img.alt = fileName;
-                        previewContainer.appendChild(img);
-                        break;
+    // Close preview modal
+    closePreview.addEventListener('click', () => {
+        filePreviewModal.style.display = 'none';
+        previewContainer.innerHTML = '';
+    });
 
-                    case 'txt':
-                    case 'log':
-                    case 'md':
-                    case 'json':
-                    case 'csv':
-                        // Text file preview
-                        fetch(signedUrl)
-                            .then(response => response.text())
-                            .then(text => {
-                                const textPreview = document.createElement('pre');
-                                textPreview.textContent = text;
-                                textPreview.classList.add('preview-text');
-                                previewContainer.appendChild(textPreview);
-                            });
-                        break;
-
-                    case 'pdf':
-                        // PDF preview using iframe
-                        const pdfFrame = document.createElement('iframe');
-                        pdfFrame.src = signedUrl;
-                        pdfFrame.width = '100%';
-                        pdfFrame.height = '500px';
-                        previewContainer.appendChild(pdfFrame);
-                        break;
-
-                    default:
-                        // Fallback for unsupported file types
-                        const unsupportedMsg = document.createElement('div');
-                        unsupportedMsg.textContent = `Preview not supported for ${fileName}. File type: ${fileExtension}`;
-                        previewContainer.appendChild(unsupportedMsg);
-                }
-
-                // Show modal
-                filePreviewModal.style.display = 'flex';
-
-            } catch (error) {
-                setStatus('Preview failed: ' + error.message, 'error');
-                console.error('Preview error:', error);
-            }
+    // Modify the displayResults function to add preview functionality
+    function displayResults(data) {
+        if (!data || data.length === 0) {
+            setStatus('No records found', 'info');
+            resultsTable.style.display = 'none';
+            return;
         }
-
-        // Close preview modal
-        document.getElementById('closePreview').addEventListener('click', () => {
-            document.getElementById('filePreviewModal').style.display = 'none';
+        
+        // Clear existing results
+        resultsBody.innerHTML = '';
+        
+        // Add new results
+        data.forEach(record => {
+            const row = document.createElement('tr');
+            
+            // Format date
+            const createdAt = new Date(record.created_at);
+            const formattedDate = createdAt.toLocaleString();
+            
+            // Get file icon
+            const fileIcon = getFileIcon(record.document_name);
+            
+            row.innerHTML = `
+                <td>${fileIcon} ${record.document_name}</td>
+                <td>${record.file_path}</td>
+                <td>${formattedDate}</td>
+                <td>
+                    <button onclick="downloadFile('${record.file_path}')">Download</button>
+                    <button onclick="previewFile('${record.file_path}', '${record.document_name}')">Preview</button>
+                </td>
+            `;
+            
+            resultsBody.appendChild(row);
         });
+        
+        resultsTable.style.display = 'table';
+        setStatus(`Found ${data.length} record(s)`, 'success');
+    }
 
-        // Modify displayResults function to include preview button
-        function displayResults(data) {
-            if (!data || data.length === 0) {
-                setStatus('No records found', 'info');
-                resultsTable.style.display = 'none';
-                return;
+    // New function to preview files
+    async function previewFile(filePath, fileName) {
+        try {
+            // Get signed URL for the file
+            const { data: signedUrlData, error: urlError } = await supabaseClient.storage
+                .from('documents')
+                .createSignedUrl(filePath, 60); // URL valid for 60 seconds
+                
+            if (urlError) throw urlError;
+
+            const fileType = fileName.split('.').pop().toLowerCase();
+            
+            // Reset previous preview
+            previewContainer.innerHTML = '';
+
+            // Preview based on file type
+            switch (fileType) {
+                case 'jpg':
+                case 'jpeg':
+                case 'png':
+                case 'gif':
+                    const img = document.createElement('img');
+                    img.src = signedUrlData.signedUrl;
+                    img.classList.add('preview-image');
+                    previewContainer.appendChild(img);
+                    break;
+                
+                case 'txt':
+                case 'csv':
+                    const response = await fetch(signedUrlData.signedUrl);
+                    const text = await response.text();
+                    const textPreview = document.createElement('pre');
+                    textPreview.textContent = text;
+                    textPreview.classList.add('preview-text');
+                    previewContainer.appendChild(textPreview);
+                    break;
+                
+                case 'pdf':
+                    const pdfPreview = document.createElement('iframe');
+                    pdfPreview.src = signedUrlData.signedUrl;
+                    pdfPreview.width = '100%';
+                    pdfPreview.height = '600px';
+                    previewContainer.appendChild(pdfPreview);
+                    break;
+                
+                default:
+                    const notSupported = document.createElement('p');
+                    notSupported.textContent = 'Preview not supported for this file type';
+                    notSupported.style.color = 'red';
+                    previewContainer.appendChild(notSupported);
             }
-            
-            // Clear existing results
-            resultsBody.innerHTML = '';
-            
-            // Add new results
-            data.forEach(record => {
-                const row = document.createElement('tr');
-                
-                // Format date
-                const createdAt = new Date(record.created_at);
-                const formattedDate = createdAt.toLocaleString();
-                
-                row.innerHTML = `
-                    <td>${record.document_name}</td>
-                    <td>${record.file_path}</td>
-                    <td>${formattedDate}</td>
-                    <td>
-                        <button onclick="downloadFile('${record.file_path}')">Download</button>
-                        <button onclick="previewFile('${record.file_path}', '${record.document_name}')">Preview</button>
-                    </td>
-                `;
-                
-                resultsBody.appendChild(row);
-            });
-            
-            resultsTable.style.display = 'table';
-            setStatus(`Found ${data.length} record(s)`, 'success');
+
+            // Show modal
+            filePreviewModal.style.display = 'flex';
+
+        } catch (error) {
+            setStatus('Preview failed: ' + error.message, 'error');
+            console.error('Preview error:', error);
         }
-    </script>
+    }
+</script>
+
 </body>
 </html>
