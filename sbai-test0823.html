@@ -25,11 +25,10 @@
     
 
 <script>
-    // --- ⬇️ 1. REPLACE THESE TWO VALUES ⬇️ ---
-    const SUPABASE_URL = 'https://your-project-url.supabase.co';
-    const SUPABASE_ANON_KEY = 'your-public-anon-key';
-    // --- ⬆️ 1. REPLACE THESE TWO VALUES ⬆️ ---
-
+   
+    const SUPABASE_URL = https://mfrefbmnxygeahaluhzr.supabase.co
+    const SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0
+   
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const statusDiv = document.getElementById('status');
     const fileInput = document.getElementById('fileInput');
@@ -46,8 +45,8 @@
         if (error) {
             statusDiv.innerText = `Login Failed: ${error.message}`;
         } else {
-            statusDiv.innerText = `Logged in as ${data.user.email}. Ready to upload.`;
-            fileInput.disabled = false;
+            statusDiv.innerText = `Logged in as ${data.user.email}. Ready to upload.`; 
+            fileInput.disabled = false; 
             uploadButton.disabled = false;
         }
     }
