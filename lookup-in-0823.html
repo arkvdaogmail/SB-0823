@@ -4,268 +4,89 @@
     <meta charset="UTF-8">
     <title>Supabase File Management System</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        /* Previous styles remain the same */
-        
-        /* Added styles for file preview modal */
-        #filePreviewModal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.8);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        #filePreviewContent {
-            background-color: white;
-            max-width: 80%;
-            max-height: 80%;
-            overflow: auto;
-            padding: 20px;
-            border-radius: 10px;
-            position: relative;
-            width: 90%;
-            height: 70%;
-        }
-        #closePreview {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            cursor: pointer;
-            font-size: 24px;
-            color: red;
-        }
-        .preview-image {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-        .preview-text {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            font-family: monospace;
-            max-height: 100%;
-            overflow: auto;
-            width: 100%;
-        }
-        .preview-iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-    </style>
+    <script>
+        // Early error logging
+        window.addEventListener('error', function(event) {
+            console.error('Uncaught error:', event.error);
+            alert('An error occurred: ' + event.error);
+        });
+    </script>
 </head>
 <body>
-    <!-- Previous body content remains the same -->
+    <div id="errorDisplay" style="color: red; background-color: #ffeeee; padding: 10px;"></div>
 
-    <!-- File Preview Modal -->
-    <div id="filePreviewModal">
-        <div id="filePreviewContent">
-            <span id="closePreview">&times;</span>
-            <div id="previewContainer" style="width:100%; height:100%;"></div>
-        </div>
-    </div>
+    <!-- Rest of the previous HTML -->
 
-<script>
-    // Supabase configuration
-    const SUPABASE_URL = 'https://mfrefbmnxygeahaluhzr.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0';
-    
-    // Initialize Supabase client
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    
-    // Existing DOM elements and function declarations remain the same...
-
-    // File type to icon and preview type mapping
-    const fileTypeConfig = {
-        'pdf': { 
-            icon: '📄', 
-            previewType: 'iframe',
-            mimeType: 'application/pdf'
-        },
-        'txt': { 
-            icon: '📝', 
-            previewType: 'text',
-            mimeType: 'text/plain'
-        },
-        'csv': { 
-            icon: '📊', 
-            previewType: 'text',
-            mimeType: 'text/csv'
-        },
-        'jpg': { 
-            icon: '🖼️', 
-            previewType: 'image',
-            mimeType: 'image/jpeg'
-        },
-        'jpeg': { 
-            icon: '🖼️', 
-            previewType: 'image',
-            mimeType: 'image/jpeg'
-        },
-        'png': { 
-            icon: '🖼️', 
-            previewType: 'image',
-            mimeType: 'image/png'
-        },
-        'gif': { 
-            icon: '🖼️', 
-            previewType: 'image',
-            mimeType: 'image/gif'
-        },
-        'default': { 
-            icon: '📁', 
-            previewType: 'unsupported',
-            mimeType: 'application/octet-stream'
+    <script>
+        // Add comprehensive error logging
+        function logError(message, error) {
+            console.error(message, error);
+            const errorDisplay = document.getElementById('errorDisplay');
+            if (errorDisplay) {
+                errorDisplay.innerHTML += `<p>${message}: ${error ? error.toString() : 'Unknown error'}</p>`;
+            }
+            alert(message);
         }
-    };
 
-    // Modal preview elements
-    const filePreviewModal = document.getElementById('filePreviewModal');
-    const previewContainer = document.getElementById('previewContainer');
-    const closePreview = document.getElementById('closePreview');
-
-    // Close preview modal
-    closePreview.addEventListener('click', () => {
-        filePreviewModal.style.display = 'none';
-        previewContainer.innerHTML = '';
-    });
-
-    // Modify the displayResults function to add preview functionality
-    function displayResults(data) {
-        if (!data || data.length === 0) {
-            setStatus('No records found', 'info');
-            resultsTable.style.display = 'none';
-            return;
-        }
-        
-        // Clear existing results
-        resultsBody.innerHTML = '';
-        
-        // Add new results
-        data.forEach(record => {
-            const row = document.createElement('tr');
-            
-            // Format date
-            const createdAt = new Date(record.created_at);
-            const formattedDate = createdAt.toLocaleString();
-            
-            // Get file icon and extension
-            const fileName = record.document_name;
-            const fileExtension = fileName.split('.').pop().toLowerCase();
-            const fileConfig = fileTypeConfig[fileExtension] || fileTypeConfig['default'];
-            
-            row.innerHTML = `
-                <td>${fileConfig.icon} ${record.document_name}</td>
-                <td>${record.file_path}</td>
-                <td>${formattedDate}</td>
-                <td>
-                    <button onclick="downloadFile('${record.file_path}')">Download</button>
-                    <button onclick="previewFile('${record.file_path}', '${record.document_name}')">Preview</button>
-                </td>
-            `;
-            
-            resultsBody.appendChild(row);
-        });
-        
-        resultsTable.style.display = 'table';
-        setStatus(`Found ${data.length} record(s)`, 'success');
-    }
-
-    // Modified preview function to work entirely in-browser
-    async function previewFile(filePath, fileName) {
+        // Modify initialization to add error handling
         try {
-            // Get signed URL for the file
-            const { data: signedUrlData, error: urlError } = await supabaseClient.storage
-                .from('documents')
-                .createSignedUrl(filePath, 60); // URL valid for 60 seconds
-                
-            if (urlError) throw urlError;
-
-            const fileExtension = fileName.split('.').pop().toLowerCase();
-            const fileConfig = fileTypeConfig[fileExtension] || fileTypeConfig['default'];
+            // Supabase configuration
+            const SUPABASE_URL = 'https://mfrefbmnxygeahaluhzr.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0';
             
-            // Reset previous preview
-            previewContainer.innerHTML = '';
+            // Initialize Supabase client with error handling
+            const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: {
+                    persistSession: true
+                }
+            });
 
-            // Fetch the file content
-            const response = await fetch(signedUrlData.signedUrl);
-            const blob = await response.blob();
+            // Add error listener to Supabase client
+            supabaseClient.on('error', (error) => {
+                logError('Supabase Client Error', error);
+            });
 
-            // Preview based on file type
-            switch (fileConfig.previewType) {
-                case 'image':
-                    const img = document.createElement('img');
-                    img.src = URL.createObjectURL(blob);
-                    img.classList.add('preview-image');
-                    previewContainer.appendChild(img);
-                    break;
-                
-                case 'text':
-                    const text = await blob.text();
-                    const textPreview = document.createElement('pre');
-                    textPreview.textContent = text;
-                    textPreview.classList.add('preview-text');
-                    previewContainer.appendChild(textPreview);
-                    break;
-                
-                case 'iframe':
-                    const iframe = document.createElement('iframe');
-                    iframe.src = URL.createObjectURL(blob);
-                    iframe.classList.add('preview-iframe');
-                    previewContainer.appendChild(iframe);
-                    break;
-                
-                default:
-                    const notSupported = document.createElement('p');
-                    notSupported.textContent = 'Preview not supported for this file type';
-                    notSupported.style.color = 'red';
-                    previewContainer.appendChild(notSupported);
+            // Rest of the previous script...
+
+            // Add a global error handler for Supabase
+            function handleSupabaseError(error) {
+                console.error('Supabase Error:', error);
+                const errorDisplay = document.getElementById('errorDisplay');
+                if (errorDisplay) {
+                    errorDisplay.innerHTML += `<p>Supabase Error: ${error.message}</p>`;
+                }
             }
 
-            // Show modal
-            filePreviewModal.style.display = 'flex';
+            // Modify existing functions to use error handling
+            async function checkAuth() {
+                try {
+                    const { data, error } = await supabaseClient.auth.getSession();
+                    
+                    if (error) {
+                        logError('Auth Session Error', error);
+                        return;
+                    }
+                    
+                    if (data.session) {
+                        setStatus('Authenticated as ' + data.session.user.email, 'success');
+                        enableUI();
+                    } else {
+                        setStatus('No active session', 'warning');
+                    }
+                } catch (error) {
+                    logError('Check Auth Error', error);
+                }
+            }
 
-        } catch (error) {
-            setStatus('Preview failed: ' + error.message, 'error');
-            console.error('Preview error:', error);
+            // Call checkAuth when script loads
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('DOM fully loaded and parsed');
+                checkAuth();
+            });
+
+        } catch (globalError) {
+            logError('Global Initialization Error', globalError);
         }
-    }
-
-    // Modify downloadFile to work in-browser
-    async function downloadFile(filePath) {
-        try {
-            // Get signed URL for the file
-            const { data, error } = await supabaseClient.storage
-                .from('documents')
-                .createSignedUrl(filePath, 60); // URL valid for 60 seconds
-                
-            if (error) throw error;
-            
-            // Fetch the file
-            const response = await fetch(data.signedUrl);
-            const blob = await response.blob();
-            
-            // Create a download link
-            const downloadLink = document.createElement('a');
-            downloadLink.href = URL.createObjectURL(blob);
-            downloadLink.download = filePath.split('/').pop();
-            
-            // Trigger download
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
-            
-        } catch (error) {
-            setStatus('Download failed: ' + error.message, 'error');
-            console.error('Download error:', error);
-        }
-    }
-</script>
-
+    </script>
 </body>
 </html>
