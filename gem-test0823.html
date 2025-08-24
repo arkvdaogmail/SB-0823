@@ -78,8 +78,8 @@
             // 2. CREATE THE RECORD
             statusDiv.innerText = 'Step 2: Creating database record...';
             const { error: insertError } = await supabaseClient
-                .from('documents') // Using 'documents' table
-                .insert({ document_name: file.name, file_path: uploadData.path }); // CORRECTED COLUMN NAME
+                .from('documents') // CORRECTED TABLE NAME
+                .insert({ document_name: file.name, document_url: uploadData.path }); // FINAL CORRECTED COLUMN NAME
 
             if (insertError) throw insertError;
             statusDiv.innerText = '✅ Database record created!';
@@ -87,9 +87,9 @@
             // 3. LOOKUP THE RECORD
             statusDiv.innerText = 'Step 3: Looking up the new record...';
             const { data: lookupData, error: lookupError } = await supabaseClient
-                .from('documents') // Using 'documents' table
-                .select('document_name') // CORRECTED COLUMN NAME
-                .eq('file_path', uploadData.path)
+                .from('documents') // CORRECTED TABLE NAME
+                .select('document_name')
+                .eq('document_url', uploadData.path) // FINAL CORRECTED COLUMN NAME
                 .single();
 
             if (lookupError) throw lookupError;
