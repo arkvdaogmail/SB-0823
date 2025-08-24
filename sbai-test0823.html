@@ -1,52 +1,29 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Supabase Upload Test</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-</head>
-<body style="font-family: sans-serif; padding: 20px;">
-
-    <h1>Supabase Upload & Lookup Test</h1>
-    <div id="status" style="padding: 10px; margin: 10px 0; background-color: #eee;">
-        Status: Waiting...
-    </div>
-
-    <hr>
-    <h3>Step 1: Log In</h3>
-    <input type="email" id="email" placeholder="test.user@email.com" />
-    <input type="password" id="password" placeholder="your-test-password" />
-    <button onclick="loginUser()">Log In</button>
-
-    <hr>
-    <h3>Step 2: Upload a File</h3>
-    <input type="file" id="fileInput" disabled />
-    <button id="uploadButton" onclick="uploadAndStampFile()" disabled>Upload & Stamp</button>
-    
-
 <script>
-   
-    const SUPABASE_URL = https://mfrefbmnxygeahaluhzr.supabase.co
-    const SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0
-   
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    /
+    const SUPABASE_URL = 'https://mfrefbmnxygeahaluhzr.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIOzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0';
+  
+
+    // CORRECTED INITIALIZATION
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
     const statusDiv = document.getElementById('status');
     const fileInput = document.getElementById('fileInput');
     const uploadButton = document.getElementById('uploadButton');
-
+ 
     // Function to log in a test user
     async function loginUser() {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         statusDiv.innerText = 'Logging in...';
 
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
         if (error) {
             statusDiv.innerText = `Login Failed: ${error.message}`;
         } else {
-            statusDiv.innerText = `Logged in as ${data.user.email}. Ready to upload.`; 
-            fileInput.disabled = false; 
+            statusDiv.innerText = `Logged in as ${data.user.email}. Ready to upload.`;
+            fileInput.disabled = false;
             uploadButton.disabled = false;
         }
     }
@@ -66,7 +43,7 @@
             statusDiv.innerText = 'Step 1: Uploading file...';
             const uniqueFileName = `${Date.now()}-${file.name}`;
             
-            const { data: uploadData, error: uploadError } = await supabase.storage
+            const { data: uploadData, error: uploadError } = await supabaseClient.storage
                 .from('stamps') // Our bucket name
                 .upload(uniqueFileName, file);
 
@@ -75,7 +52,7 @@
 
             // 2. CREATE THE RECORD in the 'stamps' table
             statusDiv.innerText = 'Step 2: Creating database record...';
-            const { error: insertError } = await supabase
+            const { error: insertError } = await supabaseClient
                 .from('stamps') // Our table name
                 .insert({ file_name: file.name, file_path: uploadData.path });
 
@@ -84,7 +61,7 @@
 
             // 3. LOOKUP THE RECORD WE JUST CREATED
             statusDiv.innerText = 'Step 3: Looking up the new record...';
-            const { data: lookupData, error: lookupError } = await supabase
+            const { data: lookupData, error: lookupError } = await supabaseClient
                 .from('stamps')
                 .select('file_name')
                 .eq('file_path', uploadData.path)
@@ -101,7 +78,3 @@
         }
     }
 </script>
-
-</body>
-</html>
-
