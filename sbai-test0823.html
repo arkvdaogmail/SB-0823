@@ -2,244 +2,46 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Supabase Auth Test</title>
-    <!-- Using the UMD version correctly -->
+    <title>Supabase API Test</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', sans-serif;
-            max-width: 500px;
-            margin: 0 auto;
-            padding: 20px;
-            line-height: 1.6;
-        }
-        .card {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        input, button {
-            display: block;
-            width: 100%;
-            padding: 8px 12px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-            border: 1px solid #ddd;
-            box-sizing: border-box;
-        }
-        button {
-            background: #3ECF8E;
-            color: white;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        button:hover {
-            background: #38BD81;
-        }
-        pre {
-            background: #f1f1f1;
-            padding: 10px;
-            border-radius: 4px;
-            overflow-x: auto;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        .error {
-            color: #e53935;
-            font-size: 14px;
-        }
-        .success {
-            color: #43a047;
-        }
-    </style>
 </head>
 <body>
-    <div class="card">
-        <h2>Supabase Auth Test</h2>
-        
-        <div id="auth-form">
-            <input type="email" id="email" placeholder="Email" value="">
-            <input type="password" id="password" placeholder="Password" value="">
-            <button id="sign-in-btn">Sign In</button>
-            <button id="sign-up-btn">Sign Up</button>
-        </div>
-        
-        <div id="user-info" style="display:none">
-            <h3>You're logged in!</h3>
-            <p>User ID: <span id="user-id"></span></p>
-            <p>Email: <span id="user-email"></span></p>
-            <button id="sign-out-btn">Sign Out</button>
-        </div>
-        
-        <div id="status-message"></div>
-        
-        <h3>Debug Console:</h3>
-        <pre id="debug-output"></pre>
-    </div>
+    <h1>Supabase Connection Test</h1>
+    <div id="result"></div>
 
     <script>
-        // Configuration
+           // Configuration
         const SUPABASE_URL = 'https://mfrefbmnxygeahaluhzr.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0';
 
-        // Debug function to display messages
-        function debugLog(message, isError = false) {
-            const output = document.getElementById('debug-output');
-            const status = document.getElementById('status-message');
-            
-            // Add timestamp
-            const now = new Date().toISOString();
-            const formattedMessage = `[${now}] ${message}`;
-            
-            // Log to debug area
-            output.textContent = formattedMessage + '\n' + output.textContent;
-            
-            // Update status
-            if (isError) {
-                status.className = 'error';
-                status.textContent = message;
-            } else {
-                status.className = 'success';
-                status.textContent = message;
-            }
-            
-            // Also log to console
-            console[isError ? 'error' : 'log'](message);
-        }
+        // Initialize Supabase client
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // Initialize Supabase client with validation
-        let supabaseClient;
-        try {
-            debugLog('Initializing Supabase client...');
-            debugLog(`URL: ${SUPABASE_URL}`);
-            debugLog(`Key length: ${SUPABASE_ANON_KEY.length} characters`);
-            
-            // FIXED: Correctly create client when loaded via UMD/CDN
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            
-            debugLog('Supabase client initialized successfully');
-        } catch (error) {
-            debugLog(`Failed to initialize Supabase client: ${error.message}`, true);
-        }
-
-        // Auth state change handler
-        function updateAuthUI(user) {
-            const authForm = document.getElementById('auth-form');
-            const userInfo = document.getElementById('user-info');
-            
-            if (user) {
-                // User is signed in
-                document.getElementById('user-id').textContent = user.id;
-                document.getElementById('user-email').textContent = user.email;
-                authForm.style.display = 'none';
-                userInfo.style.display = 'block';
-                debugLog(`User authenticated: ${user.email}`);
-            } else {
-                // No user signed in
-                authForm.style.display = 'block';
-                userInfo.style.display = 'none';
-                debugLog('No authenticated user');
-            }
-        }
-
-        // Sign in handler
-        document.getElementById('sign-in-btn').addEventListener('click', async () => {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            
-            if (!email || !password) {
-                debugLog('Email and password are required', true);
-                return;
-            }
+        // Test function
+        async function testConnection() {
+            const resultDiv = document.getElementById('result');
             
             try {
-                debugLog(`Attempting sign in for: ${email}...`);
-                
-                const { data, error } = await supabaseClient.auth.signInWithPassword({
-                    email,
-                    password
-                });
-                
-                if (error) throw error;
-                
-                debugLog('Sign in successful!');
-                updateAuthUI(data.user);
-            } catch (error) {
-                debugLog(`Sign in failed: ${error.message}`, true);
-            }
-        });
-
-        // Sign up handler
-        document.getElementById('sign-up-btn').addEventListener('click', async () => {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            
-            if (!email || !password) {
-                debugLog('Email and password are required', true);
-                return;
-            }
-            
-            try {
-                debugLog(`Attempting sign up for: ${email}...`);
-                
-                const { data, error } = await supabaseClient.auth.signUp({
-                    email,
-                    password
-                });
-                
-                if (error) throw error;
-                
-                if (data.user && data.user.identities && data.user.identities.length === 0) {
-                    debugLog('Email already registered. Please sign in instead.', true);
-                } else {
-                    debugLog('Sign up successful! You may need to verify your email.');
-                    updateAuthUI(data.user);
-                }
-            } catch (error) {
-                debugLog(`Sign up failed: ${error.message}`, true);
-            }
-        });
-
-        // Sign out handler
-        document.getElementById('sign-out-btn').addEventListener('click', async () => {
-            try {
-                debugLog('Signing out...');
-                
-                const { error } = await supabaseClient.auth.signOut();
-                
-                if (error) throw error;
-                
-                debugLog('Sign out successful!');
-                updateAuthUI(null);
-            } catch (error) {
-                debugLog(`Sign out failed: ${error.message}`, true);
-            }
-        });
-
-        // Check auth status on load
-        window.addEventListener('DOMContentLoaded', async () => {
-            try {
-                debugLog('Checking authentication status...');
-                
-                const { data, error } = await supabaseClient.auth.getUser();
-                
-                if (error) {
-                    if (error.name === 'AuthSessionMissingError') {
-                        debugLog('No active session (expected when not logged in)');
-                    } else {
-                        throw error;
+                // Example: Try to fetch some data or call an Edge Function
+                const response = await fetch(`${SUPABASE_URL}/functions/v1/YOUR_FUNCTION_NAME`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Add authorization if needed
+                        // 'Authorization': `Bearer ${token}`
                     }
-                }
-                
-                updateAuthUI(data?.user || null);
+                });
+
+                const data = await response.json();
+                resultDiv.innerHTML = `Connection Success: ${JSON.stringify(data)}`;
             } catch (error) {
-                debugLog(`Auth check failed: ${error.message}`, true);
+                resultDiv.innerHTML = `Connection Error: ${error.message}`;
+                console.error(error);
             }
-        });
+        }
+
+        // Run the test
+        testConnection();
     </script>
 </body>
 </html>
-
