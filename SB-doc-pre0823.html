@@ -1,0 +1,123 @@
+async function downloadFile(filePath, fileName) {
+    try {
+        // Get file URL
+        const { data, error } = await supabaseClient.storage
+            .from('documents')
+            .createSignedUrl(filePath, 60); // URL valid for 60 seconds
+            
+        if (error) throw error;
+
+        // Clear previous preview
+        filePreviewElement.innerHTML = '';
+
+        // Create download button
+        const downloadButton = document.createElement('button');
+        downloadButton.textContent = 'Download File';
+        downloadButton.onclick = () => {
+            window.open(data.signedUrl, '_blank');
+        };
+
+        // Get file extension
+        const fileExtension = filePath.split('.').pop().toLowerCase();
+
+        // Supported preview types
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+        const videoExtensions = ['mp4', 'webm', 'ogg'];
+        const audioExtensions = ['mp3', 'wav', 'aac'];
+        const textExtensions = ['txt', 'csv', 'log', 'json'];
+        const pdfExtensions = ['pdf'];
+
+        // Create preview element
+        const previewContainer = document.createElement('div');
+        previewContainer.style.maxWidth = '100%';
+        previewContainer.style.textAlign = 'center';
+        previewContainer.style.marginTop = '20px';
+
+        // Add file name
+        const fileNameElement = document.createElement('h3');
+        fileNameElement.textContent = `Preview: ${fileName}`;
+        previewContainer.appendChild(fileNameElement);
+
+        // Add download button
+        previewContainer.appendChild(downloadButton);
+
+        // Create preview based on file type
+        if (imageExtensions.includes(fileExtension)) {
+            // Image preview
+            const img = document.createElement('img');
+            img.src = data.signedUrl;
+            img.alt = fileName;
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '500px';
+            img.style.objectFit = 'contain';
+            previewContainer.appendChild(img);
+        } 
+        else if (videoExtensions.includes(fileExtension)) {
+            // Video preview
+            const video = document.createElement('video');
+            video.src = data.signedUrl;
+            video.controls = true;
+            video.style.maxWidth = '100%';
+            video.style.maxHeight = '500px';
+            previewContainer.appendChild(video);
+        } 
+        else if (audioExtensions.includes(fileExtension)) {
+            // Audio preview
+            const audio = document.createElement('audio');
+            audio.src = data.signedUrl;
+            audio.controls = true;
+            audio.style.maxWidth = '100%';
+            previewContainer.appendChild(audio);
+        } 
+        else if (textExtensions.includes(fileExtension)) {
+            // Text file preview
+            const textPreview = document.createElement('div');
+            textPreview.style.maxHeight = '500px';
+            textPreview.style.overflow = 'auto';
+            textPreview.style.backgroundColor = '#f4f4f4';
+            textPreview.style.padding = '15px';
+            textPreview.style.borderRadius = '5px';
+            textPreview.style.textAlign = 'left';
+            textPreview.style.fontFamily = 'monospace';
+
+            fetch(data.signedUrl)
+                .then(response => response.text())
+                .then(text => {
+                    textPreview.textContent = text;
+                    previewContainer.appendChild(textPreview);
+                })
+                .catch(err => {
+                    textPreview.textContent = 'Unable to load file content';
+                    previewContainer.appendChild(textPreview);
+                });
+        } 
+        else if (pdfExtensions.includes(fileExtension)) {
+            // PDF preview
+            const iframe = document.createElement('iframe');
+            iframe.src = data.signedUrl;
+            iframe.width = '100%';
+            iframe.height = '600px';
+            iframe.style.border = 'none';
+            previewContainer.appendChild(iframe);
+        } 
+        else {
+            // Unsupported file type
+            const unsupportedMessage = document.createElement('p');
+            unsupportedMessage.textContent = 'Preview not available for this file type';
+            unsupportedMessage.style.color = 'red';
+            previewContainer.appendChild(unsupportedMessage);
+        }
+
+        // Add preview to file preview element
+        filePreviewElement.appendChild(previewContainer);
+        
+    } catch (error) {
+        filePreviewElement.innerHTML = `
+            <div class="status error">
+                <strong>Preview Failed:</strong><br>
+                ${error.message}
+            </div>
+        `;
+        console.error('Preview error:', error);
+    }
+}
