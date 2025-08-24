@@ -28,6 +28,8 @@
             padding: 20px;
             border-radius: 10px;
             position: relative;
+            width: 90%;
+            height: 70%;
         }
         #closePreview {
             position: absolute;
@@ -39,59 +41,88 @@
         }
         .preview-image {
             max-width: 100%;
-            max-height: 500px;
+            max-height: 100%;
             object-fit: contain;
         }
         .preview-text {
             white-space: pre-wrap;
             word-wrap: break-word;
             font-family: monospace;
-            max-height: 500px;
+            max-height: 100%;
             overflow: auto;
+            width: 100%;
         }
-        .file-icon {
-            margin-right: 10px;
-            width: 24px;
-            height: 24px;
-            vertical-align: middle;
+        .preview-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
         }
     </style>
 </head>
 <body>
     <!-- Previous body content remains the same -->
 
-    <!-- Add file preview modal -->
+    <!-- File Preview Modal -->
     <div id="filePreviewModal">
         <div id="filePreviewContent">
             <span id="closePreview">&times;</span>
-            <div id="previewContainer"></div>
+            <div id="previewContainer" style="width:100%; height:100%;"></div>
         </div>
     </div>
 
 <script>
-    // Previous script remains the same, with the following additions:
+    // Supabase configuration
+    const SUPABASE_URL = 'https://mfrefbmnxygeahaluhzr.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0';
+    
+    // Initialize Supabase client
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // Existing DOM elements and function declarations remain the same...
 
-    // File type to icon mapping
-    const fileTypeIcons = {
-        'pdf': '📄',
-        'txt': '📝',
-        'doc': '📃',
-        'docx': '📃',
-        'jpg': '🖼️',
-        'jpeg': '🖼️',
-        'png': '🖼️',
-        'gif': '🖼️',
-        'csv': '📊',
-        'xls': '📊',
-        'xlsx': '📊',
-        'default': '📁'
+    // File type to icon and preview type mapping
+    const fileTypeConfig = {
+        'pdf': { 
+            icon: '📄', 
+            previewType: 'iframe',
+            mimeType: 'application/pdf'
+        },
+        'txt': { 
+            icon: '📝', 
+            previewType: 'text',
+            mimeType: 'text/plain'
+        },
+        'csv': { 
+            icon: '📊', 
+            previewType: 'text',
+            mimeType: 'text/csv'
+        },
+        'jpg': { 
+            icon: '🖼️', 
+            previewType: 'image',
+            mimeType: 'image/jpeg'
+        },
+        'jpeg': { 
+            icon: '🖼️', 
+            previewType: 'image',
+            mimeType: 'image/jpeg'
+        },
+        'png': { 
+            icon: '🖼️', 
+            previewType: 'image',
+            mimeType: 'image/png'
+        },
+        'gif': { 
+            icon: '🖼️', 
+            previewType: 'image',
+            mimeType: 'image/gif'
+        },
+        'default': { 
+            icon: '📁', 
+            previewType: 'unsupported',
+            mimeType: 'application/octet-stream'
+        }
     };
-
-    // Get file icon based on extension
-    function getFileIcon(filename) {
-        const extension = filename.split('.').pop().toLowerCase();
-        return fileTypeIcons[extension] || fileTypeIcons['default'];
-    }
 
     // Modal preview elements
     const filePreviewModal = document.getElementById('filePreviewModal');
@@ -123,11 +154,13 @@
             const createdAt = new Date(record.created_at);
             const formattedDate = createdAt.toLocaleString();
             
-            // Get file icon
-            const fileIcon = getFileIcon(record.document_name);
+            // Get file icon and extension
+            const fileName = record.document_name;
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+            const fileConfig = fileTypeConfig[fileExtension] || fileTypeConfig['default'];
             
             row.innerHTML = `
-                <td>${fileIcon} ${record.document_name}</td>
+                <td>${fileConfig.icon} ${record.document_name}</td>
                 <td>${record.file_path}</td>
                 <td>${formattedDate}</td>
                 <td>
@@ -143,7 +176,7 @@
         setStatus(`Found ${data.length} record(s)`, 'success');
     }
 
-    // New function to preview files
+    // Modified preview function to work entirely in-browser
     async function previewFile(filePath, fileName) {
         try {
             // Get signed URL for the file
@@ -153,39 +186,38 @@
                 
             if (urlError) throw urlError;
 
-            const fileType = fileName.split('.').pop().toLowerCase();
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+            const fileConfig = fileTypeConfig[fileExtension] || fileTypeConfig['default'];
             
             // Reset previous preview
             previewContainer.innerHTML = '';
 
+            // Fetch the file content
+            const response = await fetch(signedUrlData.signedUrl);
+            const blob = await response.blob();
+
             // Preview based on file type
-            switch (fileType) {
-                case 'jpg':
-                case 'jpeg':
-                case 'png':
-                case 'gif':
+            switch (fileConfig.previewType) {
+                case 'image':
                     const img = document.createElement('img');
-                    img.src = signedUrlData.signedUrl;
+                    img.src = URL.createObjectURL(blob);
                     img.classList.add('preview-image');
                     previewContainer.appendChild(img);
                     break;
                 
-                case 'txt':
-                case 'csv':
-                    const response = await fetch(signedUrlData.signedUrl);
-                    const text = await response.text();
+                case 'text':
+                    const text = await blob.text();
                     const textPreview = document.createElement('pre');
                     textPreview.textContent = text;
                     textPreview.classList.add('preview-text');
                     previewContainer.appendChild(textPreview);
                     break;
                 
-                case 'pdf':
-                    const pdfPreview = document.createElement('iframe');
-                    pdfPreview.src = signedUrlData.signedUrl;
-                    pdfPreview.width = '100%';
-                    pdfPreview.height = '600px';
-                    previewContainer.appendChild(pdfPreview);
+                case 'iframe':
+                    const iframe = document.createElement('iframe');
+                    iframe.src = URL.createObjectURL(blob);
+                    iframe.classList.add('preview-iframe');
+                    previewContainer.appendChild(iframe);
                     break;
                 
                 default:
@@ -201,6 +233,36 @@
         } catch (error) {
             setStatus('Preview failed: ' + error.message, 'error');
             console.error('Preview error:', error);
+        }
+    }
+
+    // Modify downloadFile to work in-browser
+    async function downloadFile(filePath) {
+        try {
+            // Get signed URL for the file
+            const { data, error } = await supabaseClient.storage
+                .from('documents')
+                .createSignedUrl(filePath, 60); // URL valid for 60 seconds
+                
+            if (error) throw error;
+            
+            // Fetch the file
+            const response = await fetch(data.signedUrl);
+            const blob = await response.blob();
+            
+            // Create a download link
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(blob);
+            downloadLink.download = filePath.split('/').pop();
+            
+            // Trigger download
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            
+        } catch (error) {
+            setStatus('Download failed: ' + error.message, 'error');
+            console.error('Download error:', error);
         }
     }
 </script>
