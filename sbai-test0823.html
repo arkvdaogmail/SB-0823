@@ -8,12 +8,12 @@
 <body>
     <h1>Supabase Connection Test</h1>
     <div id="result"></div>
+    <div id="error"></div>
 
-          <script>
-           // Configuration
+    <script>
+        // Configuration
         const SUPABASE_URL = 'https://mfrefbmnxygeahaluhzr.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0';
-
 
         // Initialize Supabase client
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -21,28 +21,57 @@
         // Test function
         async function testConnection() {
             const resultDiv = document.getElementById('result');
+            const errorDiv = document.getElementById('error');
             
             try {
-                // Example: Try to fetch some data or call an Edge Function
-                const response = await fetch(`${SUPABASE_URL}/functions/v1/YOUR_FUNCTION_NAME`, {
-                    method: 'GET',
+                // Directly use the test-anon-key function
+                const response = await fetch(`${SUPABASE_URL}/functions/v1/test-anon-key`, {
+                    method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        // Add authorization if needed
-                        // 'Authorization': `Bearer ${token}`
-                    }
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        supabaseUrl: SUPABASE_URL,
+                        supabaseKey: SUPABASE_ANON_KEY
+                    })
                 });
 
                 const data = await response.json();
-                resultDiv.innerHTML = `Connection Success: ${JSON.stringify(data)}`;
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <h2>✅ Connection Successful!</h2>
+                        <p>Message: ${data.message}</p>
+                        <details>
+                            <summary>Session Details</summary>
+                            <pre>${JSON.stringify(data.session, null, 2)}</pre>
+                        </details>
+                    `;
+                    resultDiv.style.color = 'green';
+                } else {
+                    errorDiv.innerHTML = `
+                        <h2>❌ Connection Failed</h2>
+                        <p>Error: ${data.message}</p>
+                        <details>
+                            <summary>Error Details</summary>
+                            <pre>${JSON.stringify(data.error, null, 2)}</pre>
+                        </details>
+                    `;
+                    errorDiv.style.color = 'red';
+                }
             } catch (error) {
-                resultDiv.innerHTML = `Connection Error: ${error.message}`;
+                errorDiv.innerHTML = `
+                    <h2>❌ Network Error</h2>
+                    <p>Error: ${error.message}</p>
+                `;
+                errorDiv.style.color = 'red';
                 console.error(error);
             }
         }
 
-        // Run the test
-        testConnection();
+        // Run the test when page loads
+        window.onload = testConnection;
     </script>
 </body>
 </html>
+
