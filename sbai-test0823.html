@@ -2,76 +2,107 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Supabase API Test</title>
+    <title>Supabase Upload Test</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body>
-    <h1>Supabase Connection Test</h1>
-    <div id="result"></div>
-    <div id="error"></div>
+<body style="font-family: sans-serif; padding: 20px;">
 
-    <script>
-        // Configuration
-        const SUPABASE_URL = 'https://mfrefbmnxygeahaluhzr.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mcmVmYm1ueHlnZWFoYWx1aHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDIxOTUsImV4cCI6MjA2ODExODE5NX0.Ur3hl7rVEWk6U-ydNbKymFmXtxUlx6RTn0pU0EnP7u0';
+    <h1>Supabase Upload & Lookup Test</h1>
+    <div id="status" style="padding: 10px; margin: 10px 0; background-color: #eee;">
+        Status: Waiting...
+    </div>
 
-        // Initialize Supabase client
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    <hr>
+    <h3>Step 1: Log In</h3>
+    <input type="email" id="email" placeholder="test.user@email.com" />
+    <input type="password" id="password" placeholder="your-test-password" />
+    <button onclick="loginUser()">Log In</button>
 
-        // Test function
-        async function testConnection() {
-            const resultDiv = document.getElementById('result');
-            const errorDiv = document.getElementById('error');
-            
-            try {
-                // Directly use the test-anon-key function
-                const response = await fetch(`${SUPABASE_URL}/functions/v1/test-anon-key`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        supabaseUrl: SUPABASE_URL,
-                        supabaseKey: SUPABASE_ANON_KEY
-                    })
-                });
+    <hr>
+    <h3>Step 2: Upload a File</h3>
+    <input type="file" id="fileInput" disabled />
+    <button id="uploadButton" onclick="uploadAndStampFile()" disabled>Upload & Stamp</button>
+    
 
-                const data = await response.json();
-                
-                if (data.success) {
-                    resultDiv.innerHTML = `
-                        <h2>✅ Connection Successful!</h2>
-                        <p>Message: ${data.message}</p>
-                        <details>
-                            <summary>Session Details</summary>
-                            <pre>${JSON.stringify(data.session, null, 2)}</pre>
-                        </details>
-                    `;
-                    resultDiv.style.color = 'green';
-                } else {
-                    errorDiv.innerHTML = `
-                        <h2>❌ Connection Failed</h2>
-                        <p>Error: ${data.message}</p>
-                        <details>
-                            <summary>Error Details</summary>
-                            <pre>${JSON.stringify(data.error, null, 2)}</pre>
-                        </details>
-                    `;
-                    errorDiv.style.color = 'red';
-                }
-            } catch (error) {
-                errorDiv.innerHTML = `
-                    <h2>❌ Network Error</h2>
-                    <p>Error: ${error.message}</p>
-                `;
-                errorDiv.style.color = 'red';
-                console.error(error);
-            }
+<script>
+    // --- ⬇️ 1. REPLACE THESE TWO VALUES ⬇️ ---
+    const SUPABASE_URL = 'https://your-project-url.supabase.co';
+    const SUPABASE_ANON_KEY = 'your-public-anon-key';
+    // --- ⬆️ 1. REPLACE THESE TWO VALUES ⬆️ ---
+
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const statusDiv = document.getElementById('status');
+    const fileInput = document.getElementById('fileInput');
+    const uploadButton = document.getElementById('uploadButton');
+
+    // Function to log in a test user
+    async function loginUser() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        statusDiv.innerText = 'Logging in...';
+
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (error) {
+            statusDiv.innerText = `Login Failed: ${error.message}`;
+        } else {
+            statusDiv.innerText = `Logged in as ${data.user.email}. Ready to upload.`;
+            fileInput.disabled = false;
+            uploadButton.disabled = false;
         }
+    }
 
-        // Run the test when page loads
-        window.onload = testConnection;
-    </script>
+    // Function to upload the file and create the record
+    async function uploadAndStampFile() {
+        const file = fileInput.files[0];
+        if (!file) {
+            statusDiv.innerText = 'Please select a file first.';
+            return;
+        }
+        
+        statusDiv.innerText = 'Starting test...';
+
+        try {
+            // 1. UPLOAD THE FILE to the 'stamps' bucket
+            statusDiv.innerText = 'Step 1: Uploading file...';
+            const uniqueFileName = `${Date.now()}-${file.name}`;
+            
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('stamps') // Our bucket name
+                .upload(uniqueFileName, file);
+
+            if (uploadError) throw uploadError;
+            statusDiv.innerText = '✅ Upload successful!';
+
+            // 2. CREATE THE RECORD in the 'stamps' table
+            statusDiv.innerText = 'Step 2: Creating database record...';
+            const { error: insertError } = await supabase
+                .from('stamps') // Our table name
+                .insert({ file_name: file.name, file_path: uploadData.path });
+
+            if (insertError) throw insertError;
+            statusDiv.innerText = '✅ Database record created!';
+
+            // 3. LOOKUP THE RECORD WE JUST CREATED
+            statusDiv.innerText = 'Step 3: Looking up the new record...';
+            const { data: lookupData, error: lookupError } = await supabase
+                .from('stamps')
+                .select('file_name')
+                .eq('file_path', uploadData.path)
+                .single();
+
+            if (lookupError) throw lookupError;
+            statusDiv.innerText = '✅ Lookup successful!';
+            
+            // FINAL SUCCESS MESSAGE
+            statusDiv.innerHTML = `<strong style="color: green;">✅✅✅ SUCCESS! ✅✅✅<br>File uploaded and record found. Your settings are correct.</strong>`;
+            
+        } catch (error) {
+            statusDiv.innerHTML = `<strong style="color: red;">❌❌❌ TEST FAILED ❌❌❌<br>Error: ${error.message}</strong>`;
+        }
+    }
+</script>
+
 </body>
 </html>
 
