@@ -64,31 +64,31 @@
         statusDiv.innerText = 'Starting test...';
 
         try {
-            // 1. UPLOAD THE FILE to the 'stamps' bucket
+            // 1. UPLOAD THE FILE
             statusDiv.innerText = 'Step 1: Uploading file...';
             const uniqueFileName = `${Date.now()}-${file.name}`;
             
             const { data: uploadData, error: uploadError } = await supabaseClient.storage
-                .from('documents') // Our bucket name
+                .from('documents') // CORRECTED BUCKET NAME
                 .upload(uniqueFileName, file);
 
             if (uploadError) throw uploadError;
             statusDiv.innerText = '✅ Upload successful!';
 
-            // 2. CREATE THE RECORD in the 'stamps' table
+            // 2. CREATE THE RECORD
             statusDiv.innerText = 'Step 2: Creating database record...';
             const { error: insertError } = await supabaseClient
-                .from('documents') // Our table name
-                .insert({ file_name: file.name, file_path: uploadData.path });
+                .from('documents') // Using 'documents' table
+                .insert({ document_name: file.name, file_path: uploadData.path }); // CORRECTED COLUMN NAME
 
             if (insertError) throw insertError;
             statusDiv.innerText = '✅ Database record created!';
 
-            // 3. LOOKUP THE RECORD WE JUST CREATED
+            // 3. LOOKUP THE RECORD
             statusDiv.innerText = 'Step 3: Looking up the new record...';
             const { data: lookupData, error: lookupError } = await supabaseClient
-                .from('documents')
-                .select('file_name')
+                .from('documents') // Using 'documents' table
+                .select('document_name') // CORRECTED COLUMN NAME
                 .eq('file_path', uploadData.path)
                 .single();
 
